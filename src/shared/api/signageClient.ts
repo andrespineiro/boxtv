@@ -139,6 +139,21 @@ export const signageClient = {
     );
   },
 
+  /** Adds a TV. The server derives a unique id from the name. */
+  createScreen(name: string) {
+    return request<{ ok: boolean; screen: Screen }>('/api/screens', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  /** Removes a TV. The primary screen can never be deleted. */
+  deleteScreen(screenId: string) {
+    return request<{ ok: boolean }>(`/api/screens/${encodeURIComponent(screenId)}`, {
+      method: 'DELETE',
+    });
+  },
+
   /** Uploads an image file to B2 and returns a stable site-relative URL. */
   uploadImage(file: File) {
     const headers = new Headers();

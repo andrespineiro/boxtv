@@ -26,21 +26,42 @@ type Attachment = {
 const SCREENS_KEY = 'screens';
 const screenKey = (id: string) => `screen:${id}`;
 
+/** Screen ids are lowercase slugs; anything else falls back to the main TV. */
+const SCREEN_ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+
 /**
- * A box has a single tele, so the app only ever ships the ids in
- * `DEFAULT_SCREEN_IDS`. Any other id — a typo, or a stale link such as
- * `/admin/admin` — resolves to the shipped screen instead of silently
- * creating a second, empty one.
+ * Normalises a screen id coming from a URL. The app now supports several TVs,
+ * so every well-formed slug is kept; only malformed input (empty, uppercase,
+ * slashes…) falls back to the primary screen.
  */
 function resolveScreenId(raw: string | null | undefined): string {
-  const fallback = DEFAULT_SCREEN_IDS[0];
-  if (!raw) return fallback;
-  return (DEFAULT_SCREEN_IDS as readonly string[]).includes(raw) ? raw : fallback;
+  const value = (raw ?? '').trim().toLowerCase();
+  return SCREEN_ID_RE.test(value) ? value : DEFAULT_SCREEN_IDS[0];
+}
+
+/** Builds a URL-safe id from the name the admin typed, deduplicating it. */
+function screenIdFromName(name: string, existing: readonly string[]): string {
+  const base =
+    name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'tv';
+
+  let candidate = base;
+  let suffix = 2;
+  while (existing.includes(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
 }
 
 const SEED_VERSION_KEY = 'seedVersion';
 /** Bumped whenever the stored screen set has to be reconciled on boot. */
-const SEED_VERSION = 3;
+const SEED_VERSION = 4;
 
 /**
  * One Durable Object per gym. It keeps:
@@ -72,6 +93,10 @@ export class GymSignageDO implements DurableObject {
         return this.handleGetState(url);
       case 'GET /screens':
         return this.handleListScreens();
+      case 'POST /screens':
+        return this.handleCreateScreen(request);
+      case 'DELETE /screens':
+        return this.handleDeleteScreen(url);
       case 'POST /command':
         return this.handleCommand(url, request);
       default:
@@ -85,7 +110,8 @@ export class GymSignageDO implements DurableObject {
     const screenId = resolveScreenId(url.searchParams.get('screenId'));
     const role: ConnectionRole = url.searchParams.get('role') === 'admin' ? 'admin' : 'tv';
 
-    const screen = await this.getOrCreateScreen(screenId);
+    const screen = await this.getScreen(screenId);
+    if (!screen) return json({ error: 'Pantalla no encontrada' }, 404);
     const subprotocol = url.searchParams.get('subprotocol');
 
     const pair = new WebSocketPair();
@@ -133,8 +159,8 @@ export class GymSignageDO implements DurableObject {
     }
 
     if (msg.type === 'STATE_REQUEST') {
-      const screen = await this.getOrCreateScreen(attachment.screenId);
-      this.send(ws, { type: 'STATE_SYNC', screen });
+      const screen = await this.getScreen(attachment.screenId);
+      if (screen) this.send(ws, { type: 'STATE_SYNC', screen });
       return;
     }
 
@@ -174,15 +200,17 @@ export class GymSignageDO implements DurableObject {
     if (!command) {
       return json({ error: 'A valid command is required' }, 400);
     }
-    const { screen } = await this.dispatchCommand(screenId, command);
-    return json({ ok: true, screen });
+    const result = await this.dispatchCommand(screenId, command);
+    if (!result) return json({ error: 'Pantalla no encontrada' }, 404);
+    return json({ ok: true, screen: result.screen });
   }
 
   private async dispatchCommand(
     screenId: string,
     command: AdminCommand,
-  ): Promise<{ screen: Screen; events: TvEvent[] }> {
-    const screen = await this.getOrCreateScreen(screenId);
+  ): Promise<{ screen: Screen; events: TvEvent[] } | null> {
+    const screen = await this.getScreen(screenId);
+    if (!screen) return null;
     const now = Date.now();
     const events: TvEvent[] = [];
 
@@ -273,14 +301,16 @@ export class GymSignageDO implements DurableObject {
 
   private async handleGetState(url: URL): Promise<Response> {
     const screenId = resolveScreenId(url.searchParams.get('screenId'));
-    const screen = await this.getOrCreateScreen(screenId);
+    const screen = await this.getScreen(screenId);
+    if (!screen) return json({ error: 'Pantalla no encontrada' }, 404);
     return json({ screen });
   }
 
   private async handleListScreens(): Promise<Response> {
     await this.ensureSeed();
     const ids = (await this.state.storage.get<string[]>(SCREENS_KEY)) ?? [];
-    const screens = await Promise.all(ids.map((id) => this.getOrCreateScreen(id)));
+    const stored = await Promise.all(ids.map((id) => this.state.storage.get<Screen>(screenKey(id))));
+    const screens = stored.filter((screen): screen is Screen => Boolean(screen));
 
     const connections = this.state.getWebSockets();
     const runtime = new Map<string, ScreenRuntimeStatus>();
@@ -314,6 +344,73 @@ export class GymSignageDO implements DurableObject {
     });
   }
 
+  // ----------------------------- Screen CRUD -------------------------------
+
+  private async handleCreateScreen(request: Request): Promise<Response> {
+    let body: { name?: unknown } | null = null;
+    try {
+      body = (await request.json()) as { name?: unknown };
+    } catch {
+      // handled below
+    }
+
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    if (!name) return json({ error: 'El nombre de la televisión es obligatorio' }, 400);
+    if (name.length > 60) {
+      return json({ error: 'El nombre no puede superar los 60 caracteres' }, 400);
+    }
+
+    await this.ensureSeed();
+    const ids = (await this.state.storage.get<string[]>(SCREENS_KEY)) ?? [];
+    const id = screenIdFromName(name, ids);
+
+    // A new TV starts with its own content but inherits the look and ads from
+    // the first screen, so the box stays visually consistent.
+    const base = ids.length ? await this.state.storage.get<Screen>(screenKey(ids[0])) : undefined;
+    const screen = createDefaultScreen(id, this.gymId);
+    screen.name = name;
+    if (base) {
+      screen.brand = { ...base.brand };
+      screen.ads = { ...base.ads, items: [...base.ads.items] };
+    }
+
+    await this.state.storage.put(screenKey(id), screen);
+    await this.state.storage.put(SCREENS_KEY, [...ids, id]);
+    return json({ ok: true, screen }, 201);
+  }
+
+  private async handleDeleteScreen(url: URL): Promise<Response> {
+    const screenId = resolveScreenId(url.searchParams.get('screenId'));
+    await this.ensureSeed();
+    const ids = (await this.state.storage.get<string[]>(SCREENS_KEY)) ?? [];
+
+    if (!ids.includes(screenId)) return json({ error: 'Pantalla no encontrada' }, 404);
+    if (ids.length <= 1) {
+      return json({ error: 'Debe quedar al menos una televisión' }, 400);
+    }
+    if (screenId === DEFAULT_SCREEN_IDS[0]) {
+      return json({ error: 'La televisión principal no se puede eliminar' }, 400);
+    }
+
+    // Kick any TV still showing this screen so it doesn't keep a dead channel.
+    for (const ws of this.state.getWebSockets()) {
+      const att = ws.deserializeAttachment() as Attachment | null;
+      if (att?.screenId !== screenId) continue;
+      try {
+        ws.close(1000, 'screen-deleted');
+      } catch {
+        // already closed
+      }
+    }
+
+    await this.state.storage.delete(screenKey(screenId));
+    await this.state.storage.put(
+      SCREENS_KEY,
+      ids.filter((id) => id !== screenId),
+    );
+    return json({ ok: true });
+  }
+
   // ------------------------------- Storage ---------------------------------
 
   private async ensureSeed(): Promise<void> {
@@ -329,36 +426,25 @@ export class GymSignageDO implements DurableObject {
       return;
     }
 
-    // One-time migration: the box is a single tele, so drop every screen the
-    // app no longer ships (`entrada`, `sala-2`, or any stray id created by an
-    // old link such as `/admin/admin`).
+    // One-time migration. v4 introduced multiple TVs, so from now on stored
+    // screens are never dropped; we only backfill the primary one if missing.
     const version = (await this.state.storage.get<number>(SEED_VERSION_KEY)) ?? 1;
     if (version >= SEED_VERSION) return;
 
-    const shipped = new Set<string>(DEFAULT_SCREEN_IDS);
-    const kept = stored.filter((id) => shipped.has(id));
-    const dropped = stored.filter((id) => !shipped.has(id));
-    for (const id of dropped) {
-      await this.state.storage.delete(screenKey(id));
+    // v4: the box supports several TVs. Unlike the old single-TV migration,
+    // never drop stored screens — only make sure the primary one exists.
+    if (!stored.includes(DEFAULT_SCREEN_IDS[0])) {
+      const id = DEFAULT_SCREEN_IDS[0];
+      await this.state.storage.put(screenKey(id), createDefaultScreen(id, this.gymId));
+      await this.state.storage.put(SCREENS_KEY, [id, ...stored]);
     }
-    if (dropped.length > 0) await this.state.storage.put(SCREENS_KEY, kept);
     await this.state.storage.put(SEED_VERSION_KEY, SEED_VERSION);
   }
 
-  private async getOrCreateScreen(rawScreenId: string): Promise<Screen> {
+  private async getScreen(rawScreenId: string): Promise<Screen | null> {
     const screenId = resolveScreenId(rawScreenId);
     await this.ensureSeed();
-    const existing = await this.state.storage.get<Screen>(screenKey(screenId));
-    if (existing) return existing;
-
-    const ids = (await this.state.storage.get<string[]>(SCREENS_KEY)) ?? [];
-    if (!ids.includes(screenId)) {
-      ids.push(screenId);
-      await this.state.storage.put(SCREENS_KEY, ids);
-    }
-    const screen = createDefaultScreen(screenId, this.gymId);
-    await this.state.storage.put(screenKey(screenId), screen);
-    return screen;
+    return (await this.state.storage.get<Screen>(screenKey(screenId))) ?? null;
   }
 
   private async saveScreen(screen: Screen): Promise<void> {

@@ -1,6 +1,6 @@
 # Box Signage — Fase 1
 
-Digital signage para boxes de CrossFit: una TV, WOD, imágenes de cualquier
+Digital signage para boxes de CrossFit: varias TVs, WOD, imágenes de cualquier
 proporción (con bandas negras, `cover` o `blur-fill`), logo del box, publicidad
 rotativa y actualización en tiempo real desde el móvil.
 
@@ -77,7 +77,7 @@ el plugin enruta `/api/*` al Worker.
 Abre:
 
 - Panel: http://localhost:5173/admin
-- TV: http://localhost:5173/tv/wod
+- TV principal: http://localhost:5173/tv/wod
 
 ### Producción
 
@@ -137,7 +137,27 @@ Definido en `src/shared/types/signage.ts`. Resumen:
 - `TimerState`: `status`, `mode`, `workSeconds`, `restSeconds`, `rounds`,
   `currentRound`, `startedAt`, `pausedAt`.
 
-Pantallas creadas automáticamente: `wod`.
+Pantallas creadas automáticamente: `wod` (la TV principal). El resto se añaden
+desde el panel y reciben un id único generado a partir de su nombre.
+
+---
+
+## Añadir televisiones
+
+El panel admite varias TVs en el mismo box:
+
+1. Entra en `/admin` y pulsa **+ Añadir TV**.
+2. Escribe un nombre (p. ej. `TV sala 2`) y pulsa **Crear televisión**. La nueva
+   TV hereda el aspecto y la publicidad de la principal, pero empieza con su
+   propio contenido.
+3. En la tarjeta de la TV, pulsa **Copiar enlace** y ábrelo en el navegador del
+   nuevo dispositivo (o pulsa **Ver** y copia la URL del navegador). El enlace
+   tiene la forma `/tv/<id>` y conserva el `?gym=` configurado.
+4. Pulsa **Editar** para publicar contenido, aspecto o publicidad solo en esa
+   TV, o en **Estado** para ver sus conexiones.
+
+La TV principal (`wod`) no se puede eliminar; siempre debe quedar al menos una.
+Al eliminar otra TV se desconectan sus reproductores y se borran sus datos.
 
 ---
 

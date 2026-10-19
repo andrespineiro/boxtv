@@ -97,6 +97,30 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     return json(body, res.status);
   }
 
+  // Admin: add a TV. The DO picks a unique id from the requested name.
+  if (pathname === '/api/screens' && request.method === 'POST') {
+    if (!isAuthorized(request, env)) return json({ error: 'Unauthorized' }, 401);
+    const payload = await request.text();
+    const res = await stub.fetch('https://do/screens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+    });
+    const body = await res.json();
+    return json(body, res.status);
+  }
+
+  // Admin: remove a TV (the primary one is protected by the DO).
+  const deleteMatch = pathname.match(/^\/api\/screens\/([^/]+)$/);
+  if (deleteMatch && request.method === 'DELETE') {
+    if (!isAuthorized(request, env)) return json({ error: 'Unauthorized' }, 401);
+    const doUrl = new URL('https://do/screens');
+    doUrl.searchParams.set('screenId', decodeURIComponent(deleteMatch[1]));
+    const res = await stub.fetch(doUrl.toString(), { method: 'DELETE' });
+    const body = await res.json();
+    return json(body, res.status);
+  }
+
   // Admin: send a command to a screen.
   const cmdMatch = pathname.match(/^\/api\/screens\/([^/]+)\/command$/);
   if (cmdMatch && request.method === 'POST') {
