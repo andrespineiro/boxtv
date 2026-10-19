@@ -40,7 +40,7 @@ export function HeaderBar({ brand, screenName }: HeaderBarProps) {
           <img
             src={brand.logoUrl}
             alt=""
-            className="h-[58%] max-h-[88px] w-auto shrink-0 object-contain"
+            className="h-[58%] max-h-[min(88px,10cqh)] w-auto shrink-0 object-contain"
           />
         ) : (
           <span
@@ -53,7 +53,7 @@ export function HeaderBar({ brand, screenName }: HeaderBarProps) {
           {title && (
             <div
               className="truncate font-black uppercase leading-none tracking-[0.06em] text-white"
-              style={{ fontSize: 'clamp(1rem, 4cqh, 3.6rem)' }}
+              style={{ fontSize: 'clamp(0.85rem, min(4cqh, 5cqw), 3.6rem)' }}
             >
               {title}
             </div>
@@ -62,7 +62,7 @@ export function HeaderBar({ brand, screenName }: HeaderBarProps) {
             <div
               className="mt-[0.7cqh] truncate font-semibold uppercase tracking-[0.3em]"
               style={{
-                fontSize: 'clamp(0.55rem, 1.7cqh, 1.3rem)',
+                fontSize: 'clamp(0.5rem, min(1.7cqh, 2.6cqw), 1.3rem)',
                 color: withAlpha(brand.primaryColor, 0.9),
               }}
             >
@@ -76,13 +76,13 @@ export function HeaderBar({ brand, screenName }: HeaderBarProps) {
         <div className="flex shrink-0 items-baseline gap-[1.5cqw] pl-[2cqw] text-right tabular-nums">
           <span
             className="font-black leading-none text-white"
-            style={{ fontSize: 'clamp(1.3rem, 4.6cqh, 5rem)' }}
+            style={{ fontSize: 'clamp(1.05rem, min(4.6cqh, 7cqw), 5rem)' }}
           >
             {time}
           </span>
           <span
             className="hidden capitalize text-white/55 sm:inline"
-            style={{ fontSize: 'clamp(0.6rem, 1.9cqh, 1.5rem)' }}
+            style={{ fontSize: 'clamp(0.55rem, min(1.9cqh, 2.8cqw), 1.5rem)' }}
           >
             {date}
           </span>

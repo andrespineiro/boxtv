@@ -6,12 +6,22 @@
   color-scheme: dark;
 }
 
+html {
+  height: 100%;
+  /* Stop iOS/Safari from inflating text when the device rotates. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body,
 #root {
-  height: 100%;
   margin: 0;
 }
+
+/* No `height: 100%` chain on purpose: each route root sizes itself against the
+   real viewport (svh/dvh). A percentage height would resolve to the mobile
+   browser's *large* viewport and clip the bottom of scrolling panels. */
 
 body {
   background: #000;
@@ -25,17 +35,33 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  overscroll-behavior: none;
+  /* Kills the accidental double-tap zoom on phones while keeping pulsing and
+     pinch-to-zoom available. */
+  touch-action: manipulation;
 }
 
-/* TV player: never scroll, never show text selection artifacts. */
+/* TV player: never scroll, never show text selection artifacts.
+   `svh` is the viewport with browser toolbars visible, so the whole layout is
+   always on screen and does not jump when mobile chrome appears/disappears. */
 .tv-root {
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  max-width: 100%;
   overflow: hidden;
   position: relative;
   user-select: none;
   /* Container so children can size themselves with cqw / cqh units. */
   container-type: size;
+  /* Keep content clear of notches, rounded corners and home indicators. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+@supports (height: 100svh) {
+  .tv-root {
+    height: 100svh;
+  }
 }
 
 /* 16:9 preview inside the admin panel using the exact same components. */
@@ -114,10 +140,47 @@ body {
 }
 
 /* Admin pages scroll inside this container because `body` is overflow:hidden
-   (needed by the TV player). Without this the mobile panel gets clipped. */
+   (needed by the TV player). `dvh` follows the visible area as mobile browser
+   toolbars move, so the panel is never clipped. Safe-area padding keeps the
+   content away from notches and the home indicator. */
 .admin-scroll {
-  height: 100%;
+  height: 100vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+@supports (height: 100dvh) {
+  .admin-scroll {
+    height: 100dvh;
+  }
+}
+
+/* The sticky header owns the top safe area so its background covers the notch
+   while its content stays below it. */
+.admin-scroll > header {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+/* iOS Safari zooms the page when an input below 16px receives focus. Keeping
+   form controls at 16px on touch devices prevents that sudden "growing" and
+   the resulting layout shift. */
+@media (pointer: coarse) {
+  .admin-scroll input:not([type='range']):not([type='color']),
+  .admin-scroll textarea,
+  .admin-scroll select {
+    font-size: 16px;
+  }
+}
+
+/* Sticky publish bar: never hide its buttons behind the home indicator. */
+.admin-publish-bar {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
 }
 
 /* Custom scrollbars in the admin panel */

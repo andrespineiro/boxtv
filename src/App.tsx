@@ -4,16 +4,21 @@ import { Dashboard } from '@/admin/pages/Dashboard';
 import { ScreenEditor } from '@/admin/pages/ScreenEditor';
 import { AdminGate } from '@/admin/components/AdminGate';
 import { DEFAULT_SCREEN_IDS } from '@/shared/defaults';
+import { useDeviceViewport } from '@/shared/hooks/useDeviceViewport';
 
 /**
- * Single-tele box: the root and the short `/w` alias open the one TV, so on the
- * device you only need to type the bare domain (or `domain/w`). The panel lives
- * at `/admin`.
+ * The root and the short `/w` alias open the primary TV (`wod`), so a device
+ * handed the bare domain works without configuration. Additional TVs get
+ * their own `/tv/:screenId` link from the panel, which lives at `/admin`.
  */
 const HOME_SCREEN = DEFAULT_SCREEN_IDS[0];
 const tvHome = `/tv/${HOME_SCREEN}`;
 
 export default function App() {
+  // Detect the device once per route tree so every screen adapts to the real
+  // viewport (orientation, phone/tablet/TV) instead of assuming 16:9.
+  useDeviceViewport();
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to={tvHome} replace />} />

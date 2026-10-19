@@ -119,14 +119,14 @@ export function ScreenEditor() {
 
   if (!draft || !previewScreen) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-950 text-white">
+      <div className="admin-scroll grid place-items-center bg-slate-950 text-white">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
       </div>
     );
   }
 
   return (
-    <div className="admin-scroll min-h-screen bg-slate-950 pb-28 text-white">
+    <div className="admin-scroll bg-slate-950 pb-28 text-white">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/85 px-[4vw] py-3 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3">
           <Link
@@ -246,7 +246,7 @@ export function ScreenEditor() {
       </div>
 
       {/* Publish bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-slate-950/95 px-[4vw] py-3 backdrop-blur">
+      <div className="admin-publish-bar fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-slate-950/95 px-[4vw] py-3 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <span className="text-sm text-slate-400">
             {dirty ? 'Cambios sin publicar' : 'Todo publicado'}

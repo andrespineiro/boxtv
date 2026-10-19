@@ -60,7 +60,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
 
   if (state === 'checking') {
     return (
-      <div className="admin-scroll grid min-h-screen place-items-center bg-slate-950 text-white">
+      <div className="admin-scroll grid place-items-center bg-slate-950 text-white">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
       </div>
     );
@@ -80,7 +80,7 @@ function KeyScreen({
   const [value, setValue] = useState('');
 
   return (
-    <div className="admin-scroll relative grid min-h-screen place-items-center overflow-hidden bg-slate-950 p-6 text-white">
+    <div className="admin-scroll relative grid place-items-center overflow-hidden bg-slate-950 p-6 text-white">
       {/* Soft brand glow behind the card. */}
       <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-orange-500/20 blur-3xl" />
 

@@ -132,7 +132,9 @@ function AdContent({
         <span
           className="truncate font-black uppercase leading-tight"
           style={{
-            fontSize: compact ? 'clamp(0.8rem, 3.2cqh, 2rem)' : 'clamp(1rem, 5cqh, 3.2rem)',
+            fontSize: compact
+              ? 'clamp(0.7rem, min(3.2cqh, 3.4cqw), 2rem)'
+              : 'clamp(0.85rem, min(5cqh, 6cqw), 3.2rem)',
             color: brand.primaryColor,
           }}
         >
@@ -141,7 +143,7 @@ function AdContent({
         {item.subtitle && !compact && (
           <span
             className="truncate text-white/80"
-            style={{ fontSize: 'clamp(0.7rem, 3cqh, 2rem)' }}
+            style={{ fontSize: 'clamp(0.6rem, min(3cqh, 4cqw), 2rem)' }}
           >
             {item.subtitle}
           </span>

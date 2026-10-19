@@ -70,11 +70,11 @@ function TextStage({
   brand: BrandConfig;
 }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-[3cqh] px-[6cqw] text-center">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-[min(3cqh,3cqw)] px-[6cqw] text-center">
       <h1
-        className="font-black uppercase leading-[1.05] tracking-tight"
+        className="max-w-full break-words font-black uppercase leading-[1.05] tracking-tight"
         style={{
-          fontSize: 'clamp(1.5rem, 9cqh, 8rem)',
+          fontSize: 'clamp(1.1rem, min(9cqh, 10cqw), 8rem)',
           color: brand.primaryColor,
           textShadow: `0 0 40px ${withAlpha(brand.primaryColor, 0.35)}`,
         }}
@@ -82,8 +82,8 @@ function TextStage({
         {title}
       </h1>
       <p
-        className="max-w-[80cqw] whitespace-pre-wrap font-medium leading-snug text-white/90"
-        style={{ fontSize: 'clamp(0.8rem, 4.2cqh, 3.5rem)' }}
+        className="max-w-[80cqw] whitespace-pre-wrap break-words font-medium leading-snug text-white/90"
+        style={{ fontSize: 'clamp(0.75rem, min(4.2cqh, 5cqw), 3.5rem)' }}
       >
         {body}
       </p>
