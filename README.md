@@ -259,6 +259,8 @@ temporizador se compacta (`pauseDuringTimer`) para no competir con el cronómetr
 | `npm run typecheck`        | `cf workers types` + typecheck de app y worker.          |
 | `npm run typecheck:app`    | Typecheck solo del cliente React.                        |
 | `npm run typecheck:worker` | Typecheck solo del Worker y el Durable Object.           |
+| `npm test`                 | Tests unitarios (Vitest, una pasada).                    |
+| `npm run test:watch`       | Tests en modo watch durante el desarrollo.               |
 | `npm run deploy`           | Typecheck + `cf deploy`.                                 |
 | `npm run cf-typegen`       | `cf workers types`: tipos de bindings.                   |
 

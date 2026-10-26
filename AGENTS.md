@@ -14,6 +14,7 @@ to verify a change.
 npm install
 npm run dev        # Vite + Worker + Durable Object on http://localhost:5173
 npm run typecheck  # generates binding types + checks app and worker
+npm test           # unit tests (Vitest)
 npm run build      # typecheck + production build
 ```
 
@@ -41,7 +42,9 @@ npm run build      # typecheck + production build
 | `src/tv/` | TV player components (`HeaderBar`, `MainStage`, `AdBar`, `TimerView`). |
 | `src/admin/` | Admin panel (gate, dashboard, per-screen editor, editors, preview). |
 | `src/App.tsx` | Route table. |
+| `*.test.ts` | Co-located Vitest unit tests (`src/**`, `worker/**`). |
 | `cloudflare.config.ts` | Worker name, bindings, DO export, static assets. |
+| `vitest.config.ts` | Unit-test runner config (node env, `@/` alias). |
 | `.dev.vars.example` | Documented local secrets template (copy to `.dev.vars`). |
 
 ## Architecture in one screen
@@ -137,9 +140,10 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
 
 - `npm run typecheck` must pass for both TS projects. The app and worker have
   separate `tsconfig` files on purpose (DOM vs Worker libs).
-- New pure logic belongs in `src/shared` or `worker/*` so it can be tested
-  without a browser or Cloudflare runtime. (A unit-test harness is tracked as
-  the next tooling step; until then, verify by typecheck + manual smoke test.)
+- `npm test` runs the unit suite (`vitest run`); `npm run test:watch` watches.
+  New pure logic belongs in `src/shared` or `worker/*` so it can be tested
+  without a browser or Cloudflare runtime. Tests are co-located as
+  `<module>.test.ts`.
 - `npm run build` is the full gate used before deploy.
 - Manual smoke test: `npm run dev`, open `/admin` and `/tv/wod`; publish a
   text change and confirm the TV updates without reloading.
