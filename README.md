@@ -252,13 +252,23 @@ temporizador se compacta (`pauseDuringTimer`) para no competir con el cronómetr
 
 ## Scripts
 
-| Script              | Descripción                                              |
-| ------------------- | -------------------------------------------------------- |
-| `npm run dev`       | `cf dev`: Vite + plugin de Cloudflare (cliente + Worker).|
-| `npm run build`     | Tipos + typecheck + `cf build` a `.cloudflare/output/v0`.|
-| `npm run typecheck` | `cf workers types` + typecheck de app y worker.          |
-| `npm run deploy`    | Typecheck + `cf deploy`.                                 |
-| `npm run cf-typegen`| `cf workers types`: tipos de bindings.                   |
+| Script                     | Descripción                                              |
+| -------------------------- | -------------------------------------------------------- |
+| `npm run dev`              | `cf dev`: Vite + plugin de Cloudflare (cliente + Worker).|
+| `npm run build`            | Tipos + typecheck + `cf build` a `.cloudflare/output/v0`.|
+| `npm run typecheck`        | `cf workers types` + typecheck de app y worker.          |
+| `npm run typecheck:app`    | Typecheck solo del cliente React.                        |
+| `npm run typecheck:worker` | Typecheck solo del Worker y el Durable Object.           |
+| `npm run deploy`           | Typecheck + `cf deploy`.                                 |
+| `npm run cf-typegen`       | `cf workers types`: tipos de bindings.                   |
+
+---
+
+## Desarrollo con agentes de código
+
+La guía para agentes (mapa del repositorio, invariantes, recetas para añadir
+comandos/campos/rutas y verificaciones) vive en [`AGENTS.md`](./AGENTS.md).
+Léela antes de tocar el contrato de datos o el Worker.
 
 ---
 

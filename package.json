@@ -3,9 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "cf dev",
-    "typecheck": "cf workers types && tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
+    "typecheck": "cf workers types && npm run typecheck:app && npm run typecheck:worker",
+    "typecheck:app": "tsc --noEmit",
+    "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
     "build": "npm run typecheck && cf build",
     "deploy": "npm run typecheck && cf deploy",
     "cf-typegen": "cf workers types"
