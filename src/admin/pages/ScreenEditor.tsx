@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { AdminCommand, MainContent, Screen } from '@/shared/types/signage';
+import type { AdminCommand, Screen } from '@/shared/types/signage';
 import { adsHeightPct, headerHeightPct } from '@/shared/defaults';
 import { useAdminScreen } from '@/admin/hooks/useAdminScreen';
 import { useAdminScreens } from '@/admin/hooks/useAdminScreens';
 import { tvPath } from '@/shared/api/signageClient';
+import {
+  buildPreviewScreen,
+  buildPublishCommands,
+  editableFieldsOf,
+  type EditableField,
+} from '@/admin/lib/publish';
 import { Preview } from '@/admin/components/Preview';
 import { MainEditor } from '@/admin/components/MainEditor';
 import { TimerEditor } from '@/admin/components/TimerEditor';
@@ -14,13 +20,6 @@ import { StatusPanel } from '@/admin/components/StatusPanel';
 import { Button, TextInput } from '@/admin/components/ui';
 
 type Tab = 'main' | 'brand' | 'ads' | 'timer' | 'status';
-
-/** Editable screen fields that map 1:1 to an admin command. */
-type EditableField = 'main' | 'brand' | 'ads' | 'name';
-
-function isEditableField(field: string): field is EditableField {
-  return field === 'main' || field === 'brand' || field === 'ads' || field === 'name';
-}
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'main', label: 'Contenido' },
@@ -51,10 +50,10 @@ export function ScreenEditor() {
   const patch = (partial: Partial<Screen>) => {
     setDraft((current) => (current ? { ...current, ...partial } : current));
     setDirtyFields((current) => {
+      const fields = editableFieldsOf(partial);
+      if (fields.length === 0) return current;
       const next = new Set(current);
-      for (const field of Object.keys(partial)) {
-        if (isEditableField(field)) next.add(field);
-      }
+      for (const field of fields) next.add(field);
       return next;
     });
   };
@@ -64,21 +63,11 @@ export function ScreenEditor() {
 
     // Only publish the fields the user actually touched, so an unrelated edit
     // never overwrites a timer (or other main content) that changed meanwhile.
-    const commands: AdminCommand[] = [];
-    if (dirtyFields.has('main')) {
-      // A running timer owns its own live state on the server; the draft only
-      // carries a placeholder, so keep the server timer (same as the preview).
-      const content: MainContent =
-        draft.main.type === 'timer' && screen?.main.type === 'timer'
-          ? { type: 'timer', timer: screen.main.timer }
-          : draft.main;
-      commands.push({ type: 'SET_MAIN', content });
-    }
-    if (dirtyFields.has('brand')) commands.push({ type: 'SET_BRAND', brand: draft.brand });
-    if (dirtyFields.has('ads')) commands.push({ type: 'SET_ADS', ads: draft.ads });
-    if (dirtyFields.has('name') && (!screen || draft.name !== screen.name)) {
-      commands.push({ type: 'SET_SCREEN_NAME', name: draft.name });
-    }
+    const commands = buildPublishCommands({
+      draft,
+      server: screen,
+      dirty: dirtyFields,
+    });
 
     let latest: Screen | null = null;
     for (const command of commands) {
@@ -102,18 +91,10 @@ export function ScreenEditor() {
   };
 
   // The timer is live: preview should use the server tick, not the frozen draft.
-  const previewScreen = useMemo<Screen | null>(() => {
-    if (!draft) return null;
-    if (draft.main.type === 'timer' && screen?.main.type === 'timer') {
-      return {
-        ...draft,
-        main: { type: 'timer', timer: screen.main.timer },
-        ads: draft.ads,
-        brand: draft.brand,
-      };
-    }
-    return draft;
-  }, [draft, screen]);
+  const previewScreen = useMemo(
+    () => buildPreviewScreen(draft, screen),
+    [draft, screen],
+  );
 
   const timer = screen?.main.type === 'timer' ? screen.main.timer : null;
 
