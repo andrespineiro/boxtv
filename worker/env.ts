@@ -18,9 +18,3 @@ export interface Env {
   /** S3 region, e.g. `us-west-004` (see your B2 bucket details). */
   B2_REGION?: string;
 }
-
-export const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Key',
-};
