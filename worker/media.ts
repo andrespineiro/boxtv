@@ -4,6 +4,7 @@
 
 import type { Env } from './env';
 import { errorJson, json } from './http';
+import { isMediaKey } from './mediaKeys';
 import { getMediaStorage } from './mediaStorage';
 
 /** Hard cap per image so a single upload can't exhaust storage/bandwidth. */
@@ -72,6 +73,9 @@ export async function handleUpload(
  * admin key is required: TVs load them with a plain `<img>`.
  */
 export async function serveMedia(env: Env, key: string): Promise<Response> {
+  // Validate before touching B2: the key comes from a public URL.
+  if (!isMediaKey(key)) return new Response('Not found', { status: 404 });
+
   const storage = getMediaStorage(env);
   if (!storage) return errorJson('Almacenamiento de imágenes no configurado', 503);
 

@@ -9,6 +9,7 @@
 
 import { AwsClient } from 'aws4fetch';
 import type { Env } from './env';
+import { isMediaKey } from './mediaKeys';
 
 export interface MediaStorage {
   /** Stores `body` under `key` (e.g. `default/<uuid>.png`). */
@@ -38,6 +39,7 @@ export function getMediaStorage(env: Env): MediaStorage | null {
 
   return {
     async put(key, body, contentType) {
+      if (!isMediaKey(key)) throw new Error('Invalid media key');
       const res = await client.fetch(objectUrl(key), {
         method: 'PUT',
         headers: { 'content-type': contentType },
@@ -49,6 +51,7 @@ export function getMediaStorage(env: Env): MediaStorage | null {
     },
 
     async get(key) {
+      if (!isMediaKey(key)) return null;
       const res = await client.fetch(objectUrl(key), { method: 'GET' });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`B2 download failed (${res.status})`);

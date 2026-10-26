@@ -32,6 +32,7 @@ npm run build      # typecheck + production build
 | `worker/auth.ts` | Admin key checks for HTTP and the WebSocket subprotocol handshake. |
 | `worker/http.ts` | `json()` / `errorJson()` helpers and CORS headers. |
 | `worker/media.ts` | Image upload validation and the public B2 read proxy. |
+| `worker/mediaKeys.ts` | Strict `<gym>/<uuid>.<ext>` key validation (path-traversal guard). |
 | `worker/env.ts` | `Env` bindings interface. |
 | `worker/mediaStorage.ts` | S3/SigV4 client for Backblaze B2 (upload + proxy read). |
 | `worker/commandValidation.ts` | Runtime validation of untrusted `AdminCommand` JSON. |
@@ -94,7 +95,9 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
    Worker echo of the accepted subprotocol on the 101 response.
 6. **Image URLs must pass `isSafeImageUrl`** (HTTPS or site-relative; no
    protocol-relative `//host`). Render untrusted images only through
-   `MediaFrame` / the ad renderer, which enforce this.
+   `MediaFrame` / the ad renderer, which enforce this. Media object keys must
+   pass `isMediaKey` before reaching B2 (no `../`, absolute paths or odd
+   extensions).
 7. **The TV layout uses container-query units (`cqw`/`cqh`)** and
    `100svh`/`100dvh`, not fixed pixels or `height: 100%` chains. The same
    components are reused in the 16:9 admin preview, so they must not assume a
