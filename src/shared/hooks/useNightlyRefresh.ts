@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { getItem, setItem, STORAGE_KEYS } from '../storage';
 
 /**
  * Reloads the page every night at 03:00 to free memory on long-running TV
@@ -13,9 +14,9 @@ export function useNightlyRefresh(hour = 3): void {
       // Any tick during the target hour triggers a single reload, so a throttled
       // background timer that misses 03:00 exactly still refreshes that night.
       if (now.getHours() === hour) {
-        const last = sessionStorage.getItem('signage.lastNightlyRefresh');
+        const last = getItem(STORAGE_KEYS.lastNightlyRefresh, 'session');
         if (last !== stamp) {
-          sessionStorage.setItem('signage.lastNightlyRefresh', stamp);
+          setItem(STORAGE_KEYS.lastNightlyRefresh, stamp, 'session');
           window.location.reload();
         }
       }

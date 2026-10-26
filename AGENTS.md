@@ -43,6 +43,7 @@ npm run build      # typecheck + production build
 | `src/shared/color.ts` | Colour helpers + `isSafeImageUrl` validation. |
 | `src/shared/wsKey.ts` | Admin key ↔ WebSocket subprotocol encoding. |
 | `src/shared/screenId.ts` | Slug normalisation/validation and id generation from a TV name. |
+| `src/shared/storage.ts` | Quota-safe local/session storage + central `STORAGE_KEYS`. |
 | `src/shared/limits.ts` | Shared numeric/name limits used by validation, defaults and UI. |
 | `src/shared/api/signageClient.ts` | Typed browser client for the HTTP/WS API. |
 | `src/shared/hooks/` | Reusable client hooks (socket, clock, timer, fullscreen, viewport…). |
@@ -181,6 +182,9 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
   publish never clobbers a concurrently running timer.
 - Admin/screen errors are surfaced in Spanish through `errorMessage` in
   `signageClient`; keep API `{ "error": "…" }` shapes.
+- Browser persistence goes through `src/shared/storage.ts`; add new keys to
+  `STORAGE_KEYS` instead of calling `localStorage` directly (private mode and
+  quota errors are already handled there).
 
 ## Pull requests
 
