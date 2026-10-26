@@ -27,8 +27,12 @@ npm run build      # typecheck + production build
 
 | Path | Responsibility |
 | --- | --- |
-| `worker/index.ts` | Worker entrypoint. Routes `/api/*`, auth, WebSocket upgrade, static assets. |
-| `worker/env.ts` | `Env` bindings interface and CORS headers. |
+| `worker/index.ts` | Worker entrypoint: CORS preflight, `/api/*` dispatch, static assets. |
+| `worker/api.ts` | `/api/*` routes and WebSocket upgrade forwarding to the DO. |
+| `worker/auth.ts` | Admin key checks for HTTP and the WebSocket subprotocol handshake. |
+| `worker/http.ts` | `json()` / `errorJson()` helpers and CORS headers. |
+| `worker/media.ts` | Image upload validation and the public B2 read proxy. |
+| `worker/env.ts` | `Env` bindings interface. |
 | `worker/mediaStorage.ts` | S3/SigV4 client for Backblaze B2 (upload + proxy read). |
 | `worker/commandValidation.ts` | Runtime validation of untrusted `AdminCommand` JSON. |
 | `worker/durable/GymSignageDO.ts` | One Durable Object per gym: persisted screens, WebSockets, broadcast. |
@@ -59,7 +63,7 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
                                               └──► B2 (S3) via worker/mediaStorage.ts
 ```
 
-- The Worker owns HTTP concerns (auth, validation entry, media, routing).
+- The Worker owns HTTP concerns: `worker/index.ts` → `worker/api.ts` → `worker/auth.ts` / `worker/media.ts`.
 - The DO owns state and realtime fan-out. It never talks to the browser
   directly; the Worker forwards a synthetic request to `stub.fetch()`.
 - The client is optimistic only for local drafts; the server is authoritative.
