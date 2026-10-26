@@ -1,3 +1,4 @@
+import { MAX_TIMER_ROUNDS, MAX_TIMER_SECONDS } from './limits';
 import type {
   AdPlaylist,
   BrandConfig,
@@ -29,6 +30,12 @@ export const ADS_PCT_RANGE = { min: 8, max: 40 } as const;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Floors a finite value and clamps it; non-finite input uses `fallback`. */
+function clampWhole(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return clamp(Math.floor(value), min, max);
 }
 
 /** Header height in `cqh`, clamped and defaulted for older stored screens. */
@@ -79,9 +86,9 @@ export function timerFromConfig(config: TimerConfig, now: number): TimerState {
   return {
     status: 'running',
     mode: config.mode,
-    workSeconds: Math.max(0, Math.floor(config.workSeconds)),
-    restSeconds: Math.max(0, Math.floor(config.restSeconds)),
-    rounds: Math.max(1, Math.floor(config.rounds)),
+    workSeconds: clampWhole(config.workSeconds, 0, MAX_TIMER_SECONDS, 0),
+    restSeconds: clampWhole(config.restSeconds, 0, MAX_TIMER_SECONDS, 0),
+    rounds: clampWhole(config.rounds, 1, MAX_TIMER_ROUNDS, 1),
     currentRound: 1,
     startedAt: now,
     pausedAt: null,

@@ -11,6 +11,10 @@ import {
   screenNameFromId,
   timerFromConfig,
 } from './defaults';
+import {
+  MAX_TIMER_ROUNDS,
+  MAX_TIMER_SECONDS,
+} from './limits';
 import type { BrandConfig } from './types/signage';
 
 function brand(overrides: Partial<BrandConfig> = {}): BrandConfig {
@@ -81,6 +85,31 @@ describe('timer helpers', () => {
       startedAt: now,
       pausedAt: null,
     });
+  });
+
+  it('clamps timer values to the shared limits', () => {
+    const timer = timerFromConfig(
+      {
+        mode: 'countdown',
+        workSeconds: MAX_TIMER_SECONDS + 1,
+        restSeconds: Number.POSITIVE_INFINITY,
+        rounds: MAX_TIMER_ROUNDS + 1,
+      },
+      0,
+    );
+    expect(timer.workSeconds).toBe(MAX_TIMER_SECONDS);
+    expect(timer.restSeconds).toBe(0);
+    expect(timer.rounds).toBe(MAX_TIMER_ROUNDS);
+  });
+
+  it('falls back to safe defaults for non-finite timer values', () => {
+    const timer = timerFromConfig(
+      { mode: 'countdown', workSeconds: Number.NaN, restSeconds: Number.NaN, rounds: Number.NaN },
+      0,
+    );
+    expect(timer.workSeconds).toBe(0);
+    expect(timer.restSeconds).toBe(0);
+    expect(timer.rounds).toBe(1);
   });
 });
 

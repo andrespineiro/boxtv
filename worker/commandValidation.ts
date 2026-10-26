@@ -7,6 +7,14 @@
 // touch storage.
 // ---------------------------------------------------------------------------
 
+import {
+  MAX_PLAYLIST_ITEMS,
+  MAX_SCREEN_NAME_LENGTH,
+  MAX_SECONDS_PER_AD,
+  MAX_SECONDS_PER_SLIDE,
+  MAX_TIMER_ROUNDS,
+  MAX_TIMER_SECONDS,
+} from '../src/shared/limits';
 import type {
   AdItem,
   AdPlaylist,
@@ -35,6 +43,21 @@ function isString(value: unknown): value is string {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isNumberInRange(value: unknown, min: number, max: number): value is number {
+  return isFiniteNumber(value) && value >= min && value <= max;
+}
+
+function isPlaylistLength(items: unknown[]): boolean {
+  return items.length <= MAX_PLAYLIST_ITEMS;
+}
+
+/** Screen names are trimmed and must fit the same limit as screen creation. */
+function isScreenName(value: unknown): value is string {
+  if (!isString(value)) return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= MAX_SCREEN_NAME_LENGTH;
 }
 
 function isOneOf<T extends string>(value: unknown, allowed: readonly string[]): value is T {
@@ -77,10 +100,10 @@ function isTimerState(value: unknown): value is TimerState {
   return (
     isOneOf<TimerState['status']>(value.status, TIMER_STATUSES) &&
     isOneOf<TimerMode>(value.mode, TIMER_MODES) &&
-    isFiniteNumber(value.workSeconds) &&
-    isFiniteNumber(value.restSeconds) &&
-    isFiniteNumber(value.rounds) &&
-    isFiniteNumber(value.currentRound) &&
+    isNumberInRange(value.workSeconds, 0, MAX_TIMER_SECONDS) &&
+    isNumberInRange(value.restSeconds, 0, MAX_TIMER_SECONDS) &&
+    isNumberInRange(value.rounds, 1, MAX_TIMER_ROUNDS) &&
+    isNumberInRange(value.currentRound, 1, MAX_TIMER_ROUNDS) &&
     (value.startedAt === null || isFiniteNumber(value.startedAt)) &&
     (value.pausedAt === null || isFiniteNumber(value.pausedAt))
   );
@@ -96,8 +119,9 @@ function isMainContent(value: unknown): value is MainContent {
     case 'carousel':
       return (
         Array.isArray(value.items) &&
+        isPlaylistLength(value.items) &&
         value.items.every(isCarouselItem) &&
-        isFiniteNumber(value.secondsPerItem)
+        isNumberInRange(value.secondsPerItem, 1, MAX_SECONDS_PER_SLIDE)
       );
     case 'timer':
       return isTimerState(value.timer);
@@ -124,8 +148,9 @@ function isAdPlaylist(value: unknown): value is AdPlaylist {
   return (
     typeof value.enabled === 'boolean' &&
     Array.isArray(value.items) &&
+    isPlaylistLength(value.items) &&
     value.items.every(isAdItem) &&
-    isFiniteNumber(value.secondsPerAd) &&
+    isNumberInRange(value.secondsPerAd, 1, MAX_SECONDS_PER_AD) &&
     typeof value.pauseDuringTimer === 'boolean'
   );
 }
@@ -134,9 +159,9 @@ function isTimerConfig(value: unknown): value is TimerConfig {
   if (!isObject(value)) return false;
   return (
     isOneOf<TimerMode>(value.mode, TIMER_MODES) &&
-    isFiniteNumber(value.workSeconds) &&
-    isFiniteNumber(value.restSeconds) &&
-    isFiniteNumber(value.rounds)
+    isNumberInRange(value.workSeconds, 0, MAX_TIMER_SECONDS) &&
+    isNumberInRange(value.restSeconds, 0, MAX_TIMER_SECONDS) &&
+    isNumberInRange(value.rounds, 1, MAX_TIMER_ROUNDS)
   );
 }
 
@@ -162,7 +187,9 @@ export function parseAdminCommand(value: unknown): AdminCommand | null {
     case 'RESET_TIMER':
       return { type: 'RESET_TIMER' };
     case 'SET_SCREEN_NAME':
-      return isString(value.name) ? { type: 'SET_SCREEN_NAME', name: value.name } : null;
+      return isScreenName(value.name)
+        ? { type: 'SET_SCREEN_NAME', name: value.name.trim() }
+        : null;
     default:
       return null;
   }

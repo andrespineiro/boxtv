@@ -6,6 +6,7 @@ import type {
   TvEvent,
 } from '../../src/shared/types/signage';
 import { createDefaultScreen, DEFAULT_SCREEN_IDS } from '../../src/shared/defaults';
+import { MAX_SCREEN_NAME_LENGTH } from '../../src/shared/limits';
 import { normalizeScreenId, resolveScreenId, screenIdFromName } from '../../src/shared/screenId';
 import { parseAdminCommand } from '../commandValidation';
 import { applyAdminCommand } from '../domain/applyCommand';
@@ -256,8 +257,11 @@ export class GymSignageDO implements DurableObject {
 
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     if (!name) return json({ error: 'El nombre de la televisión es obligatorio' }, 400);
-    if (name.length > 60) {
-      return json({ error: 'El nombre no puede superar los 60 caracteres' }, 400);
+    if (name.length > MAX_SCREEN_NAME_LENGTH) {
+      return json(
+        { error: `El nombre no puede superar los ${MAX_SCREEN_NAME_LENGTH} caracteres` },
+        400,
+      );
     }
 
     await this.ensureSeed();
