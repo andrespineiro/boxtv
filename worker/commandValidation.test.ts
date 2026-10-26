@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { parseAdminCommand } from './commandValidation';
+import {
+  MAX_PLAYLIST_ITEMS,
+  MAX_SCREEN_NAME_LENGTH,
+  MAX_SECONDS_PER_AD,
+  MAX_SECONDS_PER_SLIDE,
+  MAX_TIMER_ROUNDS,
+  MAX_TIMER_SECONDS,
+} from '../src/shared/limits';
 
 const brand = {
   logoUrl: 'https://example.com/logo.png',
@@ -155,8 +163,98 @@ describe('parseAdminCommand', () => {
       type: 'SET_SCREEN_NAME',
       name: 'TV sala 2',
     });
+    expect(parseAdminCommand({ type: 'SET_SCREEN_NAME', name: '  TV sala 2  ' })).toEqual({
+      type: 'SET_SCREEN_NAME',
+      name: 'TV sala 2',
+    });
     expect(parseAdminCommand({ type: 'SET_SCREEN_NAME', name: 2 })).toBeNull();
     expect(parseAdminCommand({ type: 'SET_SCREEN_NAME' })).toBeNull();
+  });
+
+  it('rejects empty or oversized screen names', () => {
+    expect(parseAdminCommand({ type: 'SET_SCREEN_NAME', name: '' })).toBeNull();
+    expect(parseAdminCommand({ type: 'SET_SCREEN_NAME', name: '   ' })).toBeNull();
+    expect(
+      parseAdminCommand({ type: 'SET_SCREEN_NAME', name: 'x'.repeat(MAX_SCREEN_NAME_LENGTH) }),
+    ).not.toBeNull();
+    expect(
+      parseAdminCommand({
+        type: 'SET_SCREEN_NAME',
+        name: 'x'.repeat(MAX_SCREEN_NAME_LENGTH + 1),
+      }),
+    ).toBeNull();
+  });
+
+  it('enforces timer bounds', () => {
+    const valid = { mode: 'amrap', workSeconds: 600, restSeconds: 0, rounds: 1 };
+    expect(
+      parseAdminCommand({
+        type: 'START_TIMER',
+        config: { ...valid, workSeconds: MAX_TIMER_SECONDS + 1 },
+      }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({
+        type: 'START_TIMER',
+        config: { ...valid, workSeconds: -1 },
+      }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({ type: 'START_TIMER', config: { ...valid, rounds: 0 } }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({
+        type: 'START_TIMER',
+        config: { ...valid, rounds: MAX_TIMER_ROUNDS + 1 },
+      }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({
+        type: 'SET_MAIN',
+        content: {
+          type: 'timer',
+          timer: {
+            ...timerState,
+            workSeconds: MAX_TIMER_SECONDS + 1,
+          },
+        },
+      }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({
+        type: 'SET_MAIN',
+        content: { type: 'timer', timer: { ...timerState, currentRound: 0 } },
+      }),
+    ).toBeNull();
+  });
+
+  it('enforces carousel and ad dwell-time bounds', () => {
+    expect(
+      parseAdminCommand({
+        type: 'SET_MAIN',
+        content: { ...carouselMain, secondsPerItem: MAX_SECONDS_PER_SLIDE + 1 },
+      }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({
+        type: 'SET_MAIN',
+        content: { ...carouselMain, secondsPerItem: 0 },
+      }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({ type: 'SET_ADS', ads: { ...ads, secondsPerAd: MAX_SECONDS_PER_AD + 1 } }),
+    ).toBeNull();
+    expect(
+      parseAdminCommand({ type: 'SET_ADS', ads: { ...ads, secondsPerAd: 0 } }),
+    ).toBeNull();
+  });
+
+  it('caps playlist length', () => {
+    const tooMany = Array.from({ length: MAX_PLAYLIST_ITEMS + 1 }, () => ({
+      type: 'text',
+      title: 'Ad',
+    }));
+    expect(parseAdminCommand({ type: 'SET_ADS', ads: { ...ads, items: tooMany } })).toBeNull();
   });
 
   it('drops unknown extra fields from known commands', () => {

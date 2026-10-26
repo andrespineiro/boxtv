@@ -43,6 +43,7 @@ npm run build      # typecheck + production build
 | `src/shared/color.ts` | Colour helpers + `isSafeImageUrl` validation. |
 | `src/shared/wsKey.ts` | Admin key ↔ WebSocket subprotocol encoding. |
 | `src/shared/screenId.ts` | Slug normalisation/validation and id generation from a TV name. |
+| `src/shared/limits.ts` | Shared numeric/name limits used by validation, defaults and UI. |
 | `src/shared/api/signageClient.ts` | Typed browser client for the HTTP/WS API. |
 | `src/shared/hooks/` | Reusable client hooks (socket, clock, timer, fullscreen, viewport…). |
 | `src/tv/` | TV player components (`HeaderBar`, `MainStage`, `AdBar`, `TimerView`). |
@@ -84,8 +85,9 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
 3. **The primary screen id is `wod`** (`DEFAULT_SCREEN_IDS`). It cannot be
    deleted and the bare domain/TV routes fall back to it.
 4. **Every admin mutation goes through `AdminCommand`.** Validate it with
-   `parseAdminCommand`, persist it in the DO, then broadcast a `TvEvent`
-   delta. Do not let the TV poll or write state.
+   `parseAdminCommand` (including the bounds in `src/shared/limits.ts`),
+   persist it in the DO, then broadcast a `TvEvent` delta. Do not let the TV
+   poll or write state.
 5. **The admin key never goes in a URL.** HTTP uses `X-Admin-Key`; WebSockets
    use the `Sec-WebSocket-Protocol` token built by `encodeWsKey`. Keep the
    Worker echo of the accepted subprotocol on the 101 response.
