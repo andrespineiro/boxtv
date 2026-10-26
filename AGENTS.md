@@ -35,12 +35,14 @@ npm run build      # typecheck + production build
 | `worker/env.ts` | `Env` bindings interface. |
 | `worker/mediaStorage.ts` | S3/SigV4 client for Backblaze B2 (upload + proxy read). |
 | `worker/commandValidation.ts` | Runtime validation of untrusted `AdminCommand` JSON. |
+| `worker/domain/applyCommand.ts` | Pure command → next `Screen` + `TvEvent[]` state machine. |
 | `worker/durable/GymSignageDO.ts` | One Durable Object per gym: persisted screens, WebSockets, broadcast. |
 | `src/shared/types/signage.ts` | Domain contract (`Screen`, `AdminCommand`, `TvEvent`, …). Single source of truth. |
 | `src/shared/defaults.ts` | Defaults, seeded screen ids, layout proportion helpers. |
 | `src/shared/timer.ts` | Pure timer math shared by TV and admin panel. |
 | `src/shared/color.ts` | Colour helpers + `isSafeImageUrl` validation. |
 | `src/shared/wsKey.ts` | Admin key ↔ WebSocket subprotocol encoding. |
+| `src/shared/screenId.ts` | Slug normalisation/validation and id generation from a TV name. |
 | `src/shared/api/signageClient.ts` | Typed browser client for the HTTP/WS API. |
 | `src/shared/hooks/` | Reusable client hooks (socket, clock, timer, fullscreen, viewport…). |
 | `src/tv/` | TV player components (`HeaderBar`, `MainStage`, `AdBar`, `TimerView`). |
@@ -110,7 +112,8 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
 1. Add the variant to `AdminCommand` and the matching `TvEvent` (if TVs need
    to react) in `src/shared/types/signage.ts`.
 2. Validate it in `worker/commandValidation.ts` (reject unknown shapes).
-3. Apply it in `GymSignageDO.dispatchCommand` and push the delta event(s).
+3. Apply it in `worker/domain/applyCommand.ts` and push the delta event(s);
+   `GymSignageDO.dispatchCommand` only persists and broadcasts.
 4. Handle the delta in `applyEvent` in `src/shared/hooks/useScreenSocket.ts`.
 5. Add the UI in the relevant admin editor and publish it from
    `src/admin/pages/ScreenEditor.tsx`.
@@ -166,8 +169,9 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
   correctly (they do: `closedByUs` + timer cleanup).
 - The DO uses WebSocket hibernation: state that must survive a restart belongs
   in storage or `serializeAttachment`, not instance fields.
-- `resolveScreenId` lowercases and validates slugs; malformed ids fall back to
-  the primary screen. Be deliberate when adding strict 404 behaviour.
+- `resolveScreenId` / `normalizeScreenId` live in `src/shared/screenId.ts`.
+  Malformed ids fall back to the primary screen on TV routes; admin mutations
+  should use `normalizeScreenId` + a 404 instead of silently editing `wod`.
 - `ScreenEditor` keeps a local draft and only publishes dirty fields, so a
   publish never clobbers a concurrently running timer.
 - Admin/screen errors are surfaced in Spanish through `errorMessage` in
