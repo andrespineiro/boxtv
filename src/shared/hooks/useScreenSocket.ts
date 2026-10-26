@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getJson, setJson, STORAGE_KEYS } from '../storage';
 import type { Screen, TvEvent } from '../types/signage';
 import { wsProtocols, wsUrl } from '../api/signageClient';
 
@@ -131,23 +132,10 @@ function applyEvent(event: TvEvent, current: Screen | null): Screen | null {
 
 // --------------------------- TV localStorage cache -------------------------
 
-function cacheKey(screenId: string): string {
-  return `signage.screen.${screenId}`;
-}
-
 function readCachedScreen(screenId: string): Screen | null {
-  try {
-    const raw = localStorage.getItem(cacheKey(screenId));
-    return raw ? (JSON.parse(raw) as Screen) : null;
-  } catch {
-    return null;
-  }
+  return getJson<Screen>(STORAGE_KEYS.screen(screenId));
 }
 
 function writeCachedScreen(screen: Screen): void {
-  try {
-    localStorage.setItem(cacheKey(screen.id), JSON.stringify(screen));
-  } catch {
-    // ignore quota errors
-  }
+  setJson(STORAGE_KEYS.screen(screen.id), screen);
 }

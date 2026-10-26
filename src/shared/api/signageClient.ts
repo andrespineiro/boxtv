@@ -1,8 +1,6 @@
+import { getItem, removeItem, setItem, STORAGE_KEYS } from '../storage';
 import type { AdminCommand, GymStatus, Screen } from '../types/signage';
 import { encodeWsKey } from '../wsKey';
-
-const ADMIN_KEY_STORAGE = 'signage.adminKey';
-const GYM_STORAGE = 'signage.gymId';
 
 /**
  * Optional API origin. When empty the app talks to its own origin, which is
@@ -15,37 +13,21 @@ const API_ORIGIN = ((import.meta.env.VITE_API_ORIGIN as string | undefined) ?? '
 );
 
 export function getAdminKey(): string {
-  try {
-    return localStorage.getItem(ADMIN_KEY_STORAGE) ?? '';
-  } catch {
-    return '';
-  }
+  return getItem(STORAGE_KEYS.adminKey) ?? '';
 }
 
 export function setAdminKey(key: string): void {
-  try {
-    if (key) localStorage.setItem(ADMIN_KEY_STORAGE, key);
-    else localStorage.removeItem(ADMIN_KEY_STORAGE);
-  } catch {
-    // ignore storage failures (private mode)
-  }
+  if (key) setItem(STORAGE_KEYS.adminKey, key);
+  else removeItem(STORAGE_KEYS.adminKey);
 }
 
 export function getGymId(): string {
-  try {
-    return localStorage.getItem(GYM_STORAGE) ?? '';
-  } catch {
-    return '';
-  }
+  return getItem(STORAGE_KEYS.gymId) ?? '';
 }
 
 export function setGymId(gymId: string): void {
-  try {
-    if (gymId) localStorage.setItem(GYM_STORAGE, gymId);
-    else localStorage.removeItem(GYM_STORAGE);
-  } catch {
-    // ignore storage failures (private mode)
-  }
+  if (gymId) setItem(STORAGE_KEYS.gymId, gymId);
+  else removeItem(STORAGE_KEYS.gymId);
 }
 
 /**
