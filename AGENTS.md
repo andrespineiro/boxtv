@@ -50,6 +50,7 @@ npm run build      # typecheck + production build
 | `src/shared/hooks/` | Reusable client hooks (socket, clock, timer, fullscreen, viewport…). |
 | `src/tv/` | TV player components (`HeaderBar`, `MainStage`, `AdBar`, `TimerView`). |
 | `src/admin/` | Admin panel (gate, dashboard, per-screen editor, editors, preview). |
+| `src/admin/lib/publish.ts` | Pure draft publish and preview rules for the screen editor. |
 | `src/App.tsx` | Route table. |
 | `*.test.ts` | Co-located Vitest unit tests (`src/**`, `worker/**`). |
 | `cloudflare.config.ts` | Worker name, bindings, DO export, static assets. |
