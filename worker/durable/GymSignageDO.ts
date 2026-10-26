@@ -5,12 +5,10 @@ import type {
   ScreenRuntimeStatus,
   TvEvent,
 } from '../../src/shared/types/signage';
-import {
-  createDefaultScreen,
-  DEFAULT_SCREEN_IDS,
-  timerFromConfig,
-} from '../../src/shared/defaults';
+import { createDefaultScreen, DEFAULT_SCREEN_IDS } from '../../src/shared/defaults';
+import { resolveScreenId, screenIdFromName } from '../../src/shared/screenId';
 import { parseAdminCommand } from '../commandValidation';
+import { applyAdminCommand } from '../domain/applyCommand';
 
 interface Env {
   DEFAULT_GYM_ID?: string;
@@ -25,39 +23,6 @@ type Attachment = {
 
 const SCREENS_KEY = 'screens';
 const screenKey = (id: string) => `screen:${id}`;
-
-/** Screen ids are lowercase slugs; anything else falls back to the main TV. */
-const SCREEN_ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
-
-/**
- * Normalises a screen id coming from a URL. The app now supports several TVs,
- * so every well-formed slug is kept; only malformed input (empty, uppercase,
- * slashes…) falls back to the primary screen.
- */
-function resolveScreenId(raw: string | null | undefined): string {
-  const value = (raw ?? '').trim().toLowerCase();
-  return SCREEN_ID_RE.test(value) ? value : DEFAULT_SCREEN_IDS[0];
-}
-
-/** Builds a URL-safe id from the name the admin typed, deduplicating it. */
-function screenIdFromName(name: string, existing: readonly string[]): string {
-  const base =
-    name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 40) || 'tv';
-
-  let candidate = base;
-  let suffix = 2;
-  while (existing.includes(candidate)) {
-    candidate = `${base}-${suffix}`;
-    suffix += 1;
-  }
-  return candidate;
-}
 
 const SEED_VERSION_KEY = 'seedVersion';
 /** Bumped whenever the stored screen set has to be reconciled on boot. */
@@ -211,90 +176,15 @@ export class GymSignageDO implements DurableObject {
   ): Promise<{ screen: Screen; events: TvEvent[] } | null> {
     const screen = await this.getScreen(screenId);
     if (!screen) return null;
-    const now = Date.now();
-    const events: TvEvent[] = [];
 
-    switch (command.type) {
-      case 'SET_BRAND':
-        screen.brand = command.brand;
-        events.push({ type: 'BRAND_CHANGED', brand: command.brand, updatedAt: now });
-        break;
+    const result = applyAdminCommand(screen, command, Date.now());
+    // Ignore no-ops (e.g. pausing an idle timer) so they don't bump
+    // `updatedAt` or rewrite storage.
+    if (!result.changed) return { screen: result.screen, events: [] };
 
-      case 'SET_MAIN':
-        screen.main = command.content;
-        events.push({ type: 'CONTENT_CHANGED', main: command.content, updatedAt: now });
-        if (command.content.type === 'timer') {
-          events.push({ type: 'TIMER_CHANGED', timer: command.content.timer, updatedAt: now });
-        }
-        break;
-
-      case 'SET_ADS':
-        screen.ads = command.ads;
-        events.push({ type: 'ADS_CHANGED', ads: command.ads, updatedAt: now });
-        break;
-
-      case 'START_TIMER': {
-        const timer = timerFromConfig(command.config, now);
-        screen.main = { type: 'timer', timer };
-        events.push({ type: 'TIMER_CHANGED', timer, updatedAt: now });
-        events.push({ type: 'CONTENT_CHANGED', main: screen.main, updatedAt: now });
-        break;
-      }
-
-      case 'PAUSE_TIMER':
-      case 'RESUME_TIMER':
-      case 'STOP_TIMER':
-      case 'RESET_TIMER': {
-        if (screen.main.type !== 'timer') break;
-        const timer = { ...screen.main.timer };
-        let changed = false;
-        if (command.type === 'PAUSE_TIMER' && timer.status === 'running') {
-          timer.status = 'paused';
-          timer.pausedAt = now;
-          changed = true;
-        } else if (command.type === 'RESUME_TIMER' && timer.status === 'paused') {
-          if (timer.pausedAt && timer.startedAt) {
-            timer.startedAt += now - timer.pausedAt;
-          }
-          timer.pausedAt = null;
-          timer.status = 'running';
-          changed = true;
-        } else if (
-          command.type === 'STOP_TIMER' &&
-          (timer.status === 'running' || timer.status === 'paused')
-        ) {
-          timer.status = 'finished';
-          timer.pausedAt = null;
-          changed = true;
-        } else if (command.type === 'RESET_TIMER' && timer.status !== 'idle') {
-          timer.status = 'idle';
-          timer.startedAt = null;
-          timer.pausedAt = null;
-          timer.currentRound = 1;
-          changed = true;
-        }
-        // A no-op timer command (e.g. pausing an idle timer) changes nothing.
-        if (!changed) break;
-        screen.main = { type: 'timer', timer };
-        events.push({ type: 'TIMER_CHANGED', timer, updatedAt: now });
-        events.push({ type: 'CONTENT_CHANGED', main: screen.main, updatedAt: now });
-        break;
-      }
-
-      case 'SET_SCREEN_NAME':
-        screen.name = command.name;
-        events.push({ type: 'SCREEN_NAME_CHANGED', name: command.name, updatedAt: now });
-        break;
-    }
-
-    // Ignore unknown commands and no-ops (e.g. pausing an idle timer) so they
-    // don't bump `updatedAt` or rewrite storage.
-    if (events.length === 0) return { screen, events };
-
-    screen.updatedAt = now;
-    await this.saveScreen(screen);
-    this.broadcast(screenId, events);
-    return { screen, events };
+    await this.saveScreen(result.screen);
+    this.broadcast(screenId, result.events);
+    return { screen: result.screen, events: result.events };
   }
 
   // -------------------------------- Reads ----------------------------------
