@@ -152,6 +152,8 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
   without a browser or Cloudflare runtime. Tests are co-located as
   `<module>.test.ts`.
 - `npm run build` is the full gate used before deploy.
+- `worker/durable/GymSignageDO.test.ts` exercises the DO HTTP routes with an
+  in-memory `DurableObjectState`; use it as the template for route tests.
 - Manual smoke test: `npm run dev`, open `/admin` and `/tv/wod`; publish a
   text change and confirm the TV updates without reloading.
 - The worker typecheck needs generated bindings: `npm run cf-typegen`
@@ -170,8 +172,9 @@ Admin ──HTTP POST /api/screens/...──────┴─► Worker ──�
 - The DO uses WebSocket hibernation: state that must survive a restart belongs
   in storage or `serializeAttachment`, not instance fields.
 - `resolveScreenId` / `normalizeScreenId` live in `src/shared/screenId.ts`.
-  Malformed ids fall back to the primary screen on TV routes; admin mutations
-  should use `normalizeScreenId` + a 404 instead of silently editing `wod`.
+  TV routes fall back to the primary screen for malformed ids; admin mutations
+  (`/command`, `DELETE /screens`) use `normalizeScreenId` and return 404 so a
+  typo can never silently edit `wod`.
 - `ScreenEditor` keeps a local draft and only publishes dirty fields, so a
   publish never clobbers a concurrently running timer.
 - Admin/screen errors are surfaced in Spanish through `errorMessage` in

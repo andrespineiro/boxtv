@@ -6,7 +6,7 @@ import type {
   TvEvent,
 } from '../../src/shared/types/signage';
 import { createDefaultScreen, DEFAULT_SCREEN_IDS } from '../../src/shared/defaults';
-import { resolveScreenId, screenIdFromName } from '../../src/shared/screenId';
+import { normalizeScreenId, resolveScreenId, screenIdFromName } from '../../src/shared/screenId';
 import { parseAdminCommand } from '../commandValidation';
 import { applyAdminCommand } from '../domain/applyCommand';
 
@@ -154,13 +154,23 @@ export class GymSignageDO implements DurableObject {
   // ------------------------------- Commands --------------------------------
 
   private async handleCommand(url: URL, request: Request): Promise<Response> {
-    const body = (await request.json()) as { screenId?: unknown; command?: unknown };
+    let body: { screenId?: unknown; command?: unknown } | null = null;
+    try {
+      body = (await request.json()) as { screenId?: unknown; command?: unknown };
+    } catch {
+      return json({ error: 'Invalid JSON body' }, 400);
+    }
+
     // The screen id in the URL (set by the Worker from the request path) is the
-    // source of truth; the body field is only a fallback.
-    const screenId = resolveScreenId(
+    // source of truth; the body field is only a fallback. Unlike TV routes,
+    // admin mutations must NOT fall back to the primary screen: a typo would
+    // otherwise edit `wod` silently.
+    const screenId = normalizeScreenId(
       url.searchParams.get('screenId') ??
         (typeof body.screenId === 'string' ? body.screenId : null),
     );
+    if (!screenId) return json({ error: 'Pantalla no encontrada' }, 404);
+
     const command = parseAdminCommand(body.command);
     if (!command) {
       return json({ error: 'A valid command is required' }, 400);
@@ -270,7 +280,9 @@ export class GymSignageDO implements DurableObject {
   }
 
   private async handleDeleteScreen(url: URL): Promise<Response> {
-    const screenId = resolveScreenId(url.searchParams.get('screenId'));
+    // Strict: deleting an unknown/malformed id must 404, never target `wod`.
+    const screenId = normalizeScreenId(url.searchParams.get('screenId'));
+    if (!screenId) return json({ error: 'Pantalla no encontrada' }, 404);
     await this.ensureSeed();
     const ids = (await this.state.storage.get<string[]>(SCREENS_KEY)) ?? [];
 
