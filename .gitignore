@@ -9,3 +9,4 @@ dist
 result.json
 src/result.json
 .secrets.env
+coverage
